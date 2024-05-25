@@ -243,6 +243,10 @@ config CPU_FREQ_GOV_SCHEDUTIL
 config CPU_FREQ_GOV_INTERACTIVE
 	tristate "'interactive' cpufreq policy governor"
 	depends on CPU_FREQ
+
+config CPU_FREQ_GOV_WALT
+	bool "'walt' cpufreq policy governor"
+	depends on CPU_FREQ && SMP
 	select CPU_FREQ_GOV_ATTR_SET
 	select IRQ_WORK
 	help
@@ -326,6 +330,10 @@ config MIN_FREQ_PERF
 	help
 	  Min freq to set for hp cluster when boost is over.
 endif
+
+	  be called cpufreq_walt.
+
+	  If in doubt, say N.
 
 comment "CPU frequency scaling drivers"
 
