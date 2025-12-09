@@ -833,6 +833,12 @@ config FORCE_ALLOC_FROM_DMA_ZONE
 config OPLUS_MM_HACKS
 	bool "Enable oplus memory management hacks"
 	default n
+
+config LRU_GEN
+	bool "Multi-Gen LRU"
+	depends on MMU
+	# the following options can use up the spare bits in page flags
+	depends on !MAXSMP && (64BIT || !SPARSEMEM || SPARSEMEM_VMEMMAP)
 	help
 	  Improves memory management drastically as these hacks are used in Oplus devices.
 	  Tested on devices made by OEMs like Motorola and Samsung.
