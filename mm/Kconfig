@@ -839,6 +839,7 @@ config OPLUS_MM_HACKS
 
 	  If unsure, say "n".
 	  
+
 # multi-gen LRU {
 config LRU_GEN
 	bool "Multi-Gen LRU"
