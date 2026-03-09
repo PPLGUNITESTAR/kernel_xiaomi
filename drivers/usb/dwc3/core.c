@@ -149,9 +149,6 @@ void dwc3_set_prtcap(struct dwc3 *dwc, u32 mode)
 
 void dwc3_en_sleep_mode(struct dwc3 *dwc)
 {
-	struct dwc3 *dwc = work_to_dwc(work);
-	unsigned long flags;
-	int ret;
 	u32 reg;
 
 	if (dwc->dis_enblslpm_quirk)
@@ -168,9 +165,38 @@ void dwc3_en_sleep_mode(struct dwc3 *dwc)
 	}
 }
 
-void dwc3_dis_sleep_mode(struct dwc3 *dwc)
+static void __dwc3_set_mode(struct work_struct *work)
 {
+	struct dwc3 *dwc = work_to_dwc(work);
+	unsigned long flags;
+	int ret;
 	u32 reg;
+
+	if (!dwc->desired_dr_role)
+		return;
+
+	if (dwc->desired_dr_role == dwc->current_dr_role)
+		return;
+
+	if (dwc->dr_mode != USB_DR_MODE_OTG)
+		return;
+
+	if (dwc->desired_dr_role == DWC3_GCTL_PRTCAP_OTG)
+		return;
+
+	switch (dwc->current_dr_role) {
+	case DWC3_GCTL_PRTCAP_HOST:
+		dwc3_host_exit(dwc);
+		break;
+	case DWC3_GCTL_PRTCAP_DEVICE:
+		dwc3_gadget_exit(dwc);
+		dwc3_event_buffers_cleanup(dwc);
+		break;
+	default:
+		break;
+	}
+
+	spin_lock_irqsave(&dwc->lock, flags);
 
 	dwc3_set_prtcap(dwc, dwc->desired_dr_role);
 
@@ -188,10 +214,10 @@ void dwc3_dis_sleep_mode(struct dwc3 *dwc)
 				otg_set_vbus(dwc->usb2_phy->otg, true);
 			if (dwc->usb2_generic_phy)
 				phy_set_mode(dwc->usb2_generic_phy, PHY_MODE_USB_HOST);
-				if (dwc->dis_split_quirk) {
-					reg = dwc3_readl(dwc->regs, DWC3_GUCTL3);
-					reg |= DWC3_GUCTL3_SPLITDISABLE;
-					dwc3_writel(dwc->regs, DWC3_GUCTL3, reg);
+			if (dwc->dis_split_quirk) {
+				reg = dwc3_readl(dwc->regs, DWC3_GUCTL3);
+				reg |= DWC3_GUCTL3_SPLITDISABLE;
+				dwc3_writel(dwc->regs, DWC3_GUCTL3, reg);
 			}
 		}
 		break;
