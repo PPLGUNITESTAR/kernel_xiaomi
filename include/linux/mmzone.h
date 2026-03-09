@@ -310,7 +310,6 @@ struct page_vma_mapped_walk;
 enum {
 	LRU_GEN_ANON,
 	LRU_GEN_FILE,
-	ANON_AND_FILE
 };
 
 enum {
