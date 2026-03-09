@@ -19,11 +19,11 @@
 #include <linux/binfmts.h>
 #include "sched.h"
 
-#define SUGOV_KTHREAD_PRIORITY	50
-#define UP_RATE_LIMIT_US		(500)
-#define DOWN_RATE_LIMIT_US		(2000)
+#define SUGOV_KTHREAD_PRIORITY  98
+#define UP_RATE_LIMIT_US        (0)
+#define DOWN_RATE_LIMIT_US      (4000)
 
-#define DEFAULT_HISPEED_LOAD 90
+#define DEFAULT_HISPEED_LOAD 85
 #define TARGET_LOAD 80
 
 static inline bool conservative_pl(void)
@@ -92,44 +92,25 @@ static DEFINE_PER_CPU(struct sugov_tunables *, cached_tunables);
 
 static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 {
-	s64 delta_ns;
+    s64 delta_ns;
 
-	/*
-	 * Since cpufreq_update_util() is called with rq->lock held for
-	 * the @target_cpu, our per-cpu data is fully serialized.
-	 *
-	 * However, drivers cannot in general deal with cross-cpu
-	 * requests, so while get_next_freq() will work, our
-	 * sugov_update_commit() call may not for the fast switching platforms.
-	 *
-	 * Hence stop here for remote requests if they aren't supported
-	 * by the hardware, as calculating the frequency is pointless if
-	 * we cannot in fact act on it.
-	 *
-	 * This is needed on the slow switching platforms too to prevent CPUs
-	 * going offline from leaving stale IRQ work items behind.
-	 */
-	if (!cpufreq_can_do_remote_dvfs(sg_policy->policy))
-		return false;
+    if (!cpufreq_can_do_remote_dvfs(sg_policy->policy))
+        return false;
 
-	if (unlikely(sg_policy->limits_changed)) {
-		sg_policy->limits_changed = false;
-		sg_policy->need_freq_update = true;
-		return true;
-	}
+    if (unlikely(sg_policy->limits_changed)) {
+        sg_policy->limits_changed = false;
+        sg_policy->need_freq_update = true;
+        return true;
+    }
 
-	/* If the last frequency wasn't set yet then we can still amend it */
-	if (sg_policy->work_in_progress)
-		return true;
+    if (sg_policy->work_in_progress)
+        return true;
 
-	/* No need to recalculate next freq for min_rate_limit_us
-	 * at least. However we might still decide to further rate
-	 * limit once frequency change direction is decided, according
-	 * to the separate rate limits.
-	 */
+    if (sg_policy->up_rate_delay_ns == 0)
+        return true;
 
-	delta_ns = time - sg_policy->last_freq_update_time;
-	return delta_ns >= sg_policy->min_rate_limit_ns;
+    delta_ns = time - sg_policy->last_freq_update_time;
+    return sg_policy->need_freq_update || delta_ns >= sg_policy->min_rate_limit_ns;
 }
 
 static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
@@ -223,12 +204,12 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 		freq = policy->cpuinfo.max_freq;
 	else
 		/*
-		 * Apply a 25% margin so that we select a higher frequency than
+		 * Apply a 50% margin so that we select a higher frequency than
 		 * the current one before the CPU is fully busy:
 		 */
-		freq = policy->cur + (policy->cur >> 2);
+		freq = policy->cur + (policy->cur >> 1);
 
-	freq = (freq + (freq >> 2)) * util / max;
+	freq = (freq + (freq >> 1)) * util / max;
 
 	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
 		return sg_policy->next_freq;
@@ -254,16 +235,13 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 
 static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 {
-	struct rq *rq = cpu_rq(cpu);
-	unsigned long cfs_max;
 	struct sugov_cpu *loadcpu = &per_cpu(sugov_cpu, cpu);
-
-	cfs_max = arch_scale_cpu_capacity(NULL, cpu);
-
-	*util = min(rq->cfs.avg.util_avg, cfs_max);
+	unsigned long cfs_max = arch_scale_cpu_capacity(NULL, cpu);
 	*max = cfs_max;
-
 	*util = boosted_cpu_util(cpu, &loadcpu->walt_load);
+
+	if (unlikely(*util > cfs_max))
+		*util = cfs_max;
 }
 
 static void sugov_update_single(struct update_util_data *hook, u64 time,
