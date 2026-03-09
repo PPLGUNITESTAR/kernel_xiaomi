@@ -2307,7 +2307,7 @@ static void dwc3_msm_power_collapse_por(struct dwc3_msm *mdwc)
 	/* Set the core in host mode if it was in host mode during pm_suspend */
 	if (mdwc->in_host_mode) {
 		dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_HOST);
-		// dwc3_en_sleep_mode(dwc);
+		dwc3_en_sleep_mode(dwc);
 	}
 
 }
@@ -4652,7 +4652,7 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		usb_register_notify(&mdwc->host_nb);
 
 		dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_HOST);
-		// dwc3_en_sleep_mode(dwc);
+		dwc3_en_sleep_mode(dwc);
 		mdwc->usbdev_nb.notifier_call = msm_dwc3_usbdev_notify;
 		usb_register_atomic_notify(&mdwc->usbdev_nb);
 		ret = dwc3_host_init(dwc);
@@ -4810,7 +4810,7 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 		 */
 		dwc3_msm_block_reset(mdwc, false);
 		dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_DEVICE);
-		// dwc3_dis_sleep_mode(dwc);
+		dwc3_dis_sleep_mode(dwc);
 		mdwc->in_device_mode = true;
 
 		/* Reduce the U3 exit handshake timer from 8us to approximately
