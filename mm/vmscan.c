@@ -118,15 +118,6 @@ struct scan_control {
 
 	unsigned int hibernation_mode:1;
 
-	/* The anonymous pages on the current node are below vm.anon_min_ratio */
-	unsigned int anon_below_min:1;
-
-	/* The clean file pages on the current node are below vm.clean_low_ratio */
-	unsigned int clean_below_low:1;
-
-	/* The clean file pages on the current node are below vm.clean_min_ratio */
-	unsigned int clean_below_min:1;
-
 	/* One of the zones is ready for compaction */
 	unsigned int compaction_ready:1;
 
