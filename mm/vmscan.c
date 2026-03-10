@@ -2350,61 +2350,6 @@ static int __init set_workingset_protection_values(void)
 }
 late_initcall(set_workingset_protection_values);
 
-static void prepare_workingset_protection(pg_data_t *pgdat, struct scan_control *sc)
-{
-	/*
-	 * Check the number of anonymous pages to protect them from
-	 * reclaiming if their amount is below the specified.
-	 */
-	if (sysctl_anon_min_kbytes) {
-		unsigned long reclaimable_anon;
-
-		reclaimable_anon =
-			node_page_state(pgdat, NR_ACTIVE_ANON) +
-			node_page_state(pgdat, NR_INACTIVE_ANON) +
-			node_page_state(pgdat, NR_ISOLATED_ANON);
-		reclaimable_anon <<= (PAGE_SHIFT - 10);
-
-		sc->anon_below_min = reclaimable_anon < sysctl_anon_min_kbytes;
-	} else
-		sc->anon_below_min = 0;
-
-	/*
-	 * Check the number of clean file pages to protect them from
-	 * reclaiming if their amount is below the specified.
-	 */
-	if (sysctl_clean_low_kbytes || sysctl_clean_min_kbytes) {
-		unsigned long reclaimable_file, dirty, clean;
-
-		reclaimable_file =
-			node_page_state(pgdat, NR_ACTIVE_FILE) +
-			node_page_state(pgdat, NR_INACTIVE_FILE) +
-			node_page_state(pgdat, NR_ISOLATED_FILE);
-		dirty = node_page_state(pgdat, NR_FILE_DIRTY);
-		/*
-		 * node_page_state() sum can go out of sync since
-		 * all the values are not read at once.
-		 */
-		if (likely(reclaimable_file > dirty))
-			clean = (reclaimable_file - dirty) << (PAGE_SHIFT - 10);
-		else
-			clean = 0;
-
-		sc->clean_below_low = clean < sysctl_clean_low_kbytes;
-		sc->clean_below_min = clean < sysctl_clean_min_kbytes;
-	} else {
-		sc->clean_below_low = 0;
-		sc->clean_below_min = 0;
-	}
-}
-
-enum scan_balance {
-	SCAN_EQUAL,
-	SCAN_FRACT,
-	SCAN_ANON,
-	SCAN_FILE,
-};
-
 /*
  * Determine how aggressively the anon and file LRU lists should be
  * scanned.  The relative value of each set of LRU lists is determined
