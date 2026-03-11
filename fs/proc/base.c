@@ -96,6 +96,7 @@
 #include <linux/flex_array.h>
 #include <linux/posix-timers.h>
 #include <linux/cpufreq_times.h>
+#include <linux/p002_attributes.h>
 #ifdef CONFIG_HARDWALL
 #include <asm/hardwall.h>
 #endif
@@ -1166,6 +1167,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 	char buffer[PROC_NUMBUF];
 	int oom_score_adj;
 	int err;
+	struct task_struct *task;
 
 	memset(buffer, 0, sizeof(buffer));
 	if (count > sizeof(buffer) - 1)
@@ -1185,6 +1187,16 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 	}
 
 	err = __set_oom_adj(file, oom_score_adj, false);
+
+    if (!err) {
+        task = get_proc_task(file_inode(file));
+        if (task) {
+            p002_background_event(task, oom_score_adj);
+            
+            put_task_struct(task);
+        }
+    }
+
 out:
 	return err < 0 ? err : count;
 }
