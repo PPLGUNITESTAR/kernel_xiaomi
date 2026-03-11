@@ -162,7 +162,9 @@ void dsi_convert_to_drm_mode(const struct dsi_display_mode *dsi_mode,
 		drm_mode->flags |= DRM_MODE_FLAG_CMD_MODE_PANEL;
 
 	/* set mode name */
-	*drm_mode->name = '\0';
+	snprintf(drm_mode->name, DRM_DISPLAY_MODE_LEN, "%dx%dx%dx%d",
+			drm_mode->hdisplay, drm_mode->vdisplay,
+			drm_mode->vrefresh, drm_mode->clock);
 }
 
 static int dsi_bridge_attach(struct drm_bridge *bridge)
@@ -562,7 +564,13 @@ static bool dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 			(!(dsi_mode.dsi_mode_flags & DSI_MODE_FLAG_DYN_CLK)) &&
 			(!crtc_state->active_changed ||
 			 display->is_cont_splash_enabled))
-			dsi_mode.dsi_mode_flags |= DSI_MODE_FLAG_DMS;
+			/* Reject DMS for First commit for Video Mode Panel */
+			if((dsi_mode.panel_mode == DSI_OP_VIDEO_MODE) &&
+							display->is_cont_splash_enabled)
+				pr_err("DMS not supported for display type:%d for first frame\n",
+							dsi_mode.panel_mode);
+			else
+				dsi_mode.dsi_mode_flags |= DSI_MODE_FLAG_DMS;
 
 		/* Reject seemless transition when active/connectors changed.*/
 		if ((crtc_state->active_changed ||

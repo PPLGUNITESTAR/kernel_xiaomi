@@ -73,6 +73,8 @@ extern "C" {
 #include <linux/export.h>
 #include <linux/string.h>
 
+#include "lz4armv8/lz4accel.h"
+
 #define LZ4_FORCE_INLINE static inline __attribute__((always_inline))
 
 /*^***************************************************************
@@ -183,7 +185,7 @@ LZ4LIB_API const char *LZ4_versionString(
 
 /* These are absolute limits, they should not be changed by users */
 #define LZ4_MEMORY_USAGE_MIN 10
-#define LZ4_MEMORY_USAGE_DEFAULT 14
+#define LZ4_MEMORY_USAGE_DEFAULT 16
 #define LZ4_MEMORY_USAGE_MAX 20
 
 #if (LZ4_MEMORY_USAGE < LZ4_MEMORY_USAGE_MIN)
@@ -193,6 +195,18 @@ LZ4LIB_API const char *LZ4_versionString(
 #if (LZ4_MEMORY_USAGE > LZ4_MEMORY_USAGE_MAX)
 #error "LZ4_MEMORY_USAGE is too large !"
 #endif
+
+/*
+ * LZ4_ACCELERATION_DEFAULT :
+ * Select "acceleration" for LZ4_compress_fast() when parameter value <= 0
+ */
+#define LZ4_ACCELERATION_DEFAULT 1
+/*
+ * LZ4_ACCELERATION_MAX :
+ * Any "acceleration" value higher than this threshold
+ * get treated as LZ4_ACCELERATION_MAX instead (fix #876)
+ */
+#define LZ4_ACCELERATION_MAX 65537
 
 /*-************************************
 *  Simple Functions
@@ -261,7 +275,7 @@ LZ4LIB_API int LZ4_compressBound(int inputSize);
     Values > LZ4_ACCELERATION_MAX will be replaced by LZ4_ACCELERATION_MAX (currently == 65537, see lz4.c).
 */
 LZ4LIB_API int LZ4_compress_fast(const char *src, char *dst, int srcSize,
-				 int dstCapacity, int acceleration);
+				 int dstCapacity, int acceleration, void *wrkmem);
 
 /*! LZ4_compress_fast_extState() :
  *  Same as LZ4_compress_fast(), using an externally allocated memory space for its state.
@@ -572,6 +586,16 @@ LZ4LIB_API int
 LZ4_decompress_safe_continue(LZ4_streamDecode_t *LZ4_streamDecode,
 			     const char *src, char *dst, int srcSize,
 			     int dstCapacity);
+
+LZ4LIB_API ssize_t LZ4_arm64_decompress_safe_partial(const void *source,
+						     void *dest,
+						     size_t inputSize,
+						     size_t outputSize,
+						     bool dip);
+
+LZ4LIB_API ssize_t LZ4_arm64_decompress_safe(const void *source, void *dest,
+					     size_t inputSize,
+					     size_t outputSize, bool dip);
 
 /*! LZ4_decompress_safe_usingDict() :
  *  Works the same as

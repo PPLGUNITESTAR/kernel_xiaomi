@@ -1182,7 +1182,27 @@ static int override_release(char __user *release, size_t len)
 	return ret;
 }
 
-extern bool legacy_ebpf __read_mostly;
+static int override_version(struct new_utsname __user *name)
+{
+#ifdef CONFIG_F2FS_REPORT_FAKE_KERNEL_VERSION
+	int ret;
+
+	if (strcmp(current->comm, "fsck.f2fs"))
+		return 0;
+
+	ret = copy_to_user(name->release, CONFIG_F2FS_FAKE_KERNEL_RELEASE,
+			   strlen(CONFIG_F2FS_FAKE_KERNEL_RELEASE) + 1);
+	if (ret)
+		return ret;
+
+	ret = copy_to_user(name->version, CONFIG_F2FS_FAKE_KERNEL_VERSION,
+			   strlen(CONFIG_F2FS_FAKE_KERNEL_VERSION) + 1);
+
+	return ret;
+#else
+	return 0;
+#endif
+}
 
 SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 {
@@ -1192,16 +1212,32 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 
 	down_read(&uts_sem);
 	memcpy(&tmp, utsname(), sizeof(tmp));
+#ifndef CONFIG_FAKE_UNAME_NONE
 	if (!strncmp(current->comm, "bpfloader", 9) ||
-	    !strncmp(current->comm, "netbpfload", 10) ||
-	    !strncmp(current->comm, "uprobestatsbpfl", 15) ||
-	    !strncmp(current->comm, "netd", 4)) {
-		if (current_uid().val == 0 && !legacy_ebpf) {
-			strcpy(tmp.release, "5.4.299");
-			pr_debug("fake uname: %s/%d release=%s\n",
-				 current->comm, current->pid, tmp.release);
-		}
+		!strncmp(current->comm, "netbpfload", 10) ||
+		!strncmp(current->comm, "netd", 4) ||
+		!strncmp(current->comm, "uprobestats", 11)) {
+			if (current_uid().val == 0) {
+#if defined(CONFIG_FAKE_UNAME_4_19)
+				strcpy(tmp.release, "4.19.325");
+#elif defined(CONFIG_FAKE_UNAME_5_4)
+				strcpy(tmp.release, "5.4.299");
+#elif defined(CONFIG_FAKE_UNAME_5_10)
+				strcpy(tmp.release, "5.10.247");
+#elif defined(CONFIG_FAKE_UNAME_5_15)
+				strcpy(tmp.release, "5.15.200");
+#elif defined(CONFIG_FAKE_UNAME_6_1)
+				strcpy(tmp.release, "6.1.200");
+#elif defined(CONFIG_FAKE_UNAME_6_6)
+				strcpy(tmp.release, "6.6.200");
+#elif defined(CONFIG_FAKE_UNAME_6_12)
+				strcpy(tmp.release, "6.12.200");
+#endif
+				pr_info("fake uname: %s/%d release=%s\n",
+					current->comm, current->pid, tmp.release);
+			}
 	}
+#endif
 	up_read(&uts_sem);
 
 	rcu_read_lock();
@@ -1225,6 +1261,8 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 	if (override_release(name->release, sizeof(name->release)))
 		return -EFAULT;
 	if (override_architecture(name))
+		return -EFAULT;
+	if (override_version(name))
 		return -EFAULT;
 	return 0;
 }

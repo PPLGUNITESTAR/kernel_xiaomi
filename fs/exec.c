@@ -77,8 +77,6 @@ int suid_dumpable = 0;
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
-#define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/android.hardware.graphics.composer"
-
 #define ZYGOTE32_BIN "/system/bin/app_process32"
 #define ZYGOTE64_BIN "/system/bin/app_process64"
 static struct signal_struct *zygote32_sig;
@@ -1169,6 +1167,7 @@ static int de_thread(struct task_struct *tsk)
 		 */
 		tsk->pid = leader->pid;
 		change_pid(tsk, PIDTYPE_PID, task_pid(leader));
+		transfer_pid(leader, tsk, PIDTYPE_TGID);
 		transfer_pid(leader, tsk, PIDTYPE_PGID);
 		transfer_pid(leader, tsk, PIDTYPE_SID);
 
@@ -1745,6 +1744,32 @@ static noinline bool is_lmkd_reinit(struct user_arg_ptr *argv)
 	return !strcmp(buf, "--reinit");
 }
 
+static void android_service_blacklist(const char *name)
+{
+#define FULL(x) { x, sizeof(x) }
+#define PREFIX(x) { x, sizeof(x) - 1 }
+	struct {
+		const char *path;
+		size_t len;
+	} static const blacklist[] = {
+		FULL("/vendor/bin/msm_irqbalance"),
+		PREFIX("vendor/bin/hw/vendor.qti.hardware.perf"),
+		PREFIX("vendor/bin/hw/vendor.qti.hardware.iop"),
+	};
+#undef FULL
+#undef PREFIX
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(blacklist); i++) {
+		if (!strncmp(blacklist[i].path, name, blacklist[i].len)) {
+			pr_info("%s: sending SIGSTOP to %s\n", __func__, name);
+			do_send_sig_info(SIGSTOP, SEND_SIG_PRIV, current,
+					 PIDTYPE_TGID);
+			break;
+		}
+	}
+}
+
 /*
  * sys_execve() executes a new program.
  */
@@ -1887,13 +1912,7 @@ static int __do_execve_file(int fd, struct filename *filename,
 		goto out;
 
 	if (is_global_init(current->parent)) {
-		if (unlikely(!strncmp(filename->name,
-					   HWCOMPOSER_BIN_PREFIX,
-					   strlen(HWCOMPOSER_BIN_PREFIX)))) {
-			current->flags |= PF_PERF_CRITICAL;
-			set_cpus_allowed_ptr(current, cpu_perf_mask);
-		}
-
+		android_service_blacklist(filename->name);
 		if (unlikely(!strcmp(filename->name, ZYGOTE32_BIN)))
 			zygote32_sig = current->signal;
 		else if (unlikely(!strcmp(filename->name, ZYGOTE64_BIN)))

@@ -112,7 +112,7 @@ struct lpm_cluster {
 	uint32_t tmr_add;
 	bool lpm_prediction;
 	struct list_head cpu;
-	spinlock_t sync_lock;
+	raw_spinlock_t sync_lock;
 	struct cpumask child_cpus;
 	struct cpumask num_children_in_sync;
 	struct lpm_cluster *parent;
@@ -137,7 +137,7 @@ uint32_t *get_per_cpu_min_residency(int cpu);
 extern struct lpm_cluster *lpm_root_node;
 
 #if defined(CONFIG_SMP)
-extern DEFINE_PER_CPU(bool, pending_ipi);
+DECLARE_PER_CPU(bool, pending_ipi);
 static inline bool is_IPI_pending(const struct cpumask *mask)
 {
 	unsigned int cpu;

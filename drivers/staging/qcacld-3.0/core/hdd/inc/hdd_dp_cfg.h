@@ -396,7 +396,7 @@
 		"gBusBandwidthHighThreshold", \
 		0, \
 		4294967295UL, \
-		2000, \
+		6000, \
 		CFG_VALUE_OR_DEFAULT, \
 		"Bus bandwidth high threshold")
 
@@ -419,7 +419,7 @@
 		"gBusBandwidthMediumThreshold", \
 		0, \
 		4294967295UL, \
-		500, \
+		1000, \
 		CFG_VALUE_OR_DEFAULT, \
 		"Bus bandwidth medium threshold")
 
@@ -442,7 +442,7 @@
 		"gBusBandwidthLowThreshold", \
 		0, \
 		4294967295UL, \
-		150, \
+		500, \
 		CFG_VALUE_OR_DEFAULT, \
 		"Bus bandwidth low threshold")
 
@@ -465,7 +465,7 @@
 		"gBusBandwidthComputeInterval", \
 		0, \
 		10000, \
-		100, \
+		10000, \
 		CFG_VALUE_OR_DEFAULT, \
 		"Bus bandwidth compute interval")
 
@@ -1103,6 +1103,30 @@
 
 /*
  * <ini>
+ * rx_wakelock_timeout - Amount of time to hold wakelock for RX unicast packets
+ * @Min: 0
+ * @Max: 100
+ * @Default: 50
+ *
+ * This ini item configures the amount of time, in milliseconds, that the driver
+ * should prevent system power collapse after receiving an RX unicast packet.
+ * A conigured value of 0 disables the RX Wakelock feature completely.
+ *
+ * Related: None.
+ *
+ * Supported Feature: RX Wakelock
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+#define CFG_DP_RX_WAKELOCK_TIMEOUT \
+	CFG_INI_UINT("rx_wakelock_timeout", \
+	0, 100, 50, CFG_VALUE_OR_DEFAULT, \
+	"Amount of time to hold wakelock for RX unicast packets")
+
+/*
+ * <ini>
  * num_dp_rx_threads - Control to set the number of dp rx threads
  *
  * @Min: 1
@@ -1418,6 +1442,7 @@
 	CFG(CFG_DP_CE_SERVICE_MAX_YIELD_TIME) \
 	CFG(CFG_DP_ENABLE_TCP_PARAM_UPDATE) \
 	CFG(CFG_DP_FILTER_MULTICAST_REPLAY) \
+	CFG(CFG_DP_RX_WAKELOCK_TIMEOUT) \
 	CFG(CFG_DP_NUM_DP_RX_THREADS) \
 	CFG(CFG_DP_HTC_WMI_CREDIT_CNT) \
 	CFG_DP_ENABLE_FASTPATH_ALL \

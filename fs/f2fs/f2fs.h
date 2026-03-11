@@ -232,7 +232,7 @@ enum {
 #define DEF_MID_DISCARD_ISSUE_TIME	500	/* 500 ms, if device busy */
 #define DEF_MAX_DISCARD_ISSUE_TIME	60000	/* 60 s, if no candidates */
 #define DEF_DISCARD_URGENT_UTIL		80	/* do more discard over 80% */
-#define DEF_CP_INTERVAL			60	/* 60 secs */
+#define DEF_CP_INTERVAL			6000	/* 6000 secs */
 #define DEF_IDLE_INTERVAL		5	/* 5 secs */
 #define DEF_DISABLE_INTERVAL		5	/* 5 secs */
 #define DEF_DISABLE_QUICK_INTERVAL	1	/* 1 secs */
@@ -2732,7 +2732,7 @@ static inline void f2fs_copy_page(struct page *src, struct page *dst)
 	char *src_kaddr = kmap(src);
 	char *dst_kaddr = kmap(dst);
 
-	memcpy(dst_kaddr, src_kaddr, PAGE_SIZE);
+	copy_page(dst_kaddr, src_kaddr);
 	kunmap(dst);
 	kunmap(src);
 }

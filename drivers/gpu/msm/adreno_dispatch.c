@@ -1,14 +1,7 @@
-/* Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/wait.h>
@@ -942,6 +935,29 @@ static void _adreno_dispatcher_issuecmds(struct adreno_device *adreno_dev)
 	spin_unlock(&dispatcher->plist_lock);
 }
 
+/* Update the dispatcher timers */
+static void _dispatcher_update_timers(struct adreno_device *adreno_dev)
+{
+	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
+	struct adreno_dispatcher *dispatcher = &adreno_dev->dispatcher;
+
+	/* Kick the idle timer */
+	mutex_lock(&device->mutex);
+	kgsl_pwrscale_update(device);
+	mod_timer(&device->idle_timer,
+			jiffies + device->pwrctrl.interval_timeout);
+	mutex_unlock(&device->mutex);
+
+	/* Check to see if we need to update the command timer */
+	if (adreno_in_preempt_state(adreno_dev, ADRENO_PREEMPT_NONE)) {
+		struct adreno_dispatcher_drawqueue *drawqueue =
+			DRAWQUEUE(adreno_dev->cur_rb);
+
+		if (!adreno_drawqueue_is_empty(drawqueue))
+			mod_timer(&dispatcher->timer, drawqueue->expires);
+	}
+}
+
 static inline void _decrement_submit_now(struct kgsl_device *device)
 {
 	spin_lock(&device->submit_lock);
@@ -976,6 +992,10 @@ static void adreno_dispatcher_issuecmds(struct adreno_device *adreno_dev)
 	}
 
 	_adreno_dispatcher_issuecmds(adreno_dev);
+
+	if (dispatcher->inflight)
+		_dispatcher_update_timers(adreno_dev);
+
 	mutex_unlock(&dispatcher->mutex);
 	_decrement_submit_now(device);
 	return;
@@ -1168,7 +1188,16 @@ static inline int _wait_for_room_in_context_queue(
 		spin_lock(&drawctxt->lock);
 		trace_adreno_drawctxt_wake(drawctxt);
 
-		if (ret <= 0)
+		/*
+		 * Account for the possibility that the context got invalidated
+		 * while we were sleeping
+		 */
+
+		if (ret >= 1) {
+			ret = _check_context_state(&drawctxt->base);
+			if (ret)
+				return ret;
+		} else
 			return (ret == 0) ? -ETIMEDOUT : (int) ret;
 	}
 
@@ -1183,15 +1212,7 @@ static unsigned int _check_context_state_to_queue_cmds(
 	if (ret)
 		return ret;
 
-	ret = _wait_for_room_in_context_queue(drawctxt);
-	if (ret)
-		return ret;
-
-	/*
-	 * Account for the possiblity that the context got invalidated
-	 * while we were sleeping
-	 */
-	return _check_context_state(&drawctxt->base);
+	return _wait_for_room_in_context_queue(drawctxt);
 }
 
 static void _queue_drawobj(struct adreno_context *drawctxt,
@@ -2226,11 +2247,12 @@ static int dispatcher_do_fault(struct adreno_device *adreno_dev)
 		ret = adreno_reset(device, fault);
 
 	mutex_unlock(&device->mutex);
-	/* if any other fault got in until reset then ignore */
-	atomic_set(&dispatcher->fault, 0);
 
 	/* If adreno_reset() fails then what hope do we have for the future? */
 	BUG_ON(ret);
+
+	/* if any other fault got in until reset then ignore */
+	atomic_set(&dispatcher->fault, 0);
 
 	/* recover all the dispatch_q's starting with the one that hung */
 	if (dispatch_q)
@@ -2399,29 +2421,6 @@ static int adreno_dispatch_process_drawqueue(struct adreno_device *adreno_dev,
 	 */
 	_adreno_dispatch_check_timeout(adreno_dev, drawqueue);
 	return 0;
-}
-
-/* Update the dispatcher timers */
-static void _dispatcher_update_timers(struct adreno_device *adreno_dev)
-{
-	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
-	struct adreno_dispatcher *dispatcher = &adreno_dev->dispatcher;
-
-	/* Kick the idle timer */
-	mutex_lock(&device->mutex);
-	kgsl_pwrscale_update(device);
-	mod_timer(&device->idle_timer,
-		jiffies + device->pwrctrl.interval_timeout);
-	mutex_unlock(&device->mutex);
-
-	/* Check to see if we need to update the command timer */
-	if (adreno_in_preempt_state(adreno_dev, ADRENO_PREEMPT_NONE)) {
-		struct adreno_dispatcher_drawqueue *drawqueue =
-			DRAWQUEUE(adreno_dev->cur_rb);
-
-		if (!adreno_drawqueue_is_empty(drawqueue))
-			mod_timer(&dispatcher->timer, drawqueue->expires);
-	}
 }
 
 /* Take down the dispatcher and release any power states */
@@ -2838,8 +2837,7 @@ int adreno_dispatcher_idle(struct adreno_device *adreno_dev)
 	 * Ensure that this function is not called when dispatcher
 	 * mutex is held and device is started
 	 */
-	if (mutex_is_locked(&dispatcher->mutex) &&
-		(__mutex_owner(&dispatcher->mutex) == current))
+	if (mutex_is_locked(&dispatcher->mutex))
 		return -EDEADLK;
 
 	adreno_get_gpu_halt(adreno_dev);

@@ -91,7 +91,7 @@ obj-y += $(obj)/lib-ksyms.o
 endif
 
 ifneq ($(strip $(obj-y) $(need-builtin)),)
-builtin-target := $(obj)/built-in.o
+builtin-target := $(obj)/built-in.a
 endif
 
 modorder-target := $(obj)/modules.order
@@ -114,7 +114,7 @@ ifneq ($(KBUILD_CHECKSRC),0)
   endif
 endif
 
-# Do section mismatch analysis for each module/built-in.o
+# Do section mismatch analysis for each module/built-in.a
 ifdef CONFIG_DEBUG_SECTION_MISMATCH
   cmd_secanalysis = ; scripts/mod/modpost $@
 endif
@@ -503,11 +503,10 @@ ifdef CONFIG_LTO_CLANG
     # combine symversions for later processing
     update_lto_symversions =				\
 	rm -f $@.symversions; 				\
-	for i in $(filter-out FORCE,$^); do		\
-		if [ -f $$i.symversions ]; then		\
-			cat $$i.symversions 		\
-				>> $@.symversions;	\
-		fi;					\
+	for i in $(foreach n,						\
+			$(filter-out FORCE,$^),				\
+			$(if $(wildcard $(n).symversions),$(n))); do	\
+		cat $$i.symversions >> $@.symversions;			\
 	done;
   endif
   # rebuild the symbol table with llvm-ar to include IR files
@@ -529,7 +528,7 @@ else
   quiet_cmd_link_o_target = LD      $@
 endif
 
-# If the list of objects to link is empty, just create an empty built-in.o
+# If the list of objects to link is empty, just create an empty built-in.a
 cmd_link_o_target = $(if $(strip $(obj-y)),\
 		      $(cmd_make_builtin) $@ $(filter $(obj-y), $^) \
 		      $(cmd_secanalysis),\
