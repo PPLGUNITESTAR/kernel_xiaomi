@@ -4125,17 +4125,19 @@ static inline unsigned long task_util_est(struct task_struct *p)
 	return max(task_util(p), _task_util_est(p));
 }
 
+static unsigned long boosted_task_util(struct task_struct *task);
+
 #ifdef CONFIG_UCLAMP_TASK
 static inline unsigned long uclamp_task_util(struct task_struct *p)
 {
-	return clamp(task_util_est(p),
-		     uclamp_eff_value(p, UCLAMP_MIN),
-		     uclamp_eff_value(p, UCLAMP_MAX));
+    return clamp(task_util_est(p),
+             uclamp_eff_value(p, UCLAMP_MIN),
+             uclamp_eff_value(p, UCLAMP_MAX));
 }
 #else
 static inline unsigned long uclamp_task_util(struct task_struct *p)
 {
-	return boosted_task_util(p);
+    return boosted_task_util(p);
 }
 #endif
 
