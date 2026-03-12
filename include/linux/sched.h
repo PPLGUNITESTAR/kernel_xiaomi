@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_SCHED_H
+#ifndef _LINUX_SCHED_H 
 #define _LINUX_SCHED_H
 
 /*
@@ -2069,7 +2069,7 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
  * running or not.
  */
 #ifndef vcpu_is_preempted
-# define vcpu_is_preempted(cpu)	false
+# define vcpu_is_preempted(cpu) false
 #endif
 
 extern long msm_sched_setaffinity(pid_t pid, struct cpumask *new_mask);
@@ -2077,80 +2077,61 @@ extern long sched_setaffinity(pid_t pid, const struct cpumask *new_mask);
 extern long sched_getaffinity(pid_t pid, struct cpumask *mask);
 
 #ifndef TASK_SIZE_OF
-#define TASK_SIZE_OF(tsk)	TASK_SIZE
+#define TASK_SIZE_OF(tsk)   TASK_SIZE
 #endif
 
 static inline u32 sched_get_wake_up_idle(struct task_struct *p)
 {
-	u32 enabled = p->flags & PF_WAKE_UP_IDLE;
+    u32 enabled = p->flags & PF_WAKE_UP_IDLE;
 
-	return !!enabled;
+    return !!enabled;
 }
 
 static inline int sched_set_wake_up_idle(struct task_struct *p,
-						int wake_up_idle)
+                        int wake_up_idle)
 {
-	int enable = !!wake_up_idle;
+    int enable = !!wake_up_idle;
 
-	if (enable)
-		p->flags |= PF_WAKE_UP_IDLE;
-	else
-		p->flags &= ~PF_WAKE_UP_IDLE;
+    if (enable)
+        p->flags |= PF_WAKE_UP_IDLE;
+    else
+        p->flags &= ~PF_WAKE_UP_IDLE;
 
-static inline unsigned long rlimit_max(unsigned int limit)
-{
-	return task_rlimit_max(current, limit);
+    return 0;
 }
 
-#define SCHED_CPUFREQ_RT	(1U << 0)
-#define SCHED_CPUFREQ_DL	(1U << 1)
-#define SCHED_CPUFREQ_IOWAIT	(1U << 2)
-#define SCHED_CPUFREQ_INTERCLUSTER_MIG (1U << 3)
-#define SCHED_CPUFREQ_WALT (1U << 4)
-#define SCHED_CPUFREQ_PL	(1U << 5)
-#define SCHED_CPUFREQ_EARLY_DET	(1U << 6)
-#define SCHED_CPUFREQ_FORCE_UPDATE (1U << 7)
-#define SCHED_CPUFREQ_CONTINUE	(1U << 8)
-#define SCHED_CPUFREQ_BOOST_UPDATE	(1U << 9)
+#ifndef SCHED_CPUFREQ_WALT
+#define SCHED_CPUFREQ_WALT          (1U << 4)
+#endif
 
-#define SCHED_CPUFREQ_RT_DL	(SCHED_CPUFREQ_RT | SCHED_CPUFREQ_DL)
+#ifndef SCHED_CPUFREQ_BOOST_UPDATE
+#define SCHED_CPUFREQ_BOOST_UPDATE  (1U << 9)
+#endif
 
-#ifdef CONFIG_CPU_FREQ
-struct update_util_data {
-       void (*func)(struct update_util_data *data, u64 time, unsigned int flags);
-};
+#ifndef SCHED_CPUFREQ_RT_DL
+#define SCHED_CPUFREQ_RT_DL         (SCHED_CPUFREQ_RT | SCHED_CPUFREQ_DL)
+#endif
 
-void cpufreq_add_update_util_hook(int cpu, struct update_util_data *data,
-                       void (*func)(struct update_util_data *data, u64 time,
-				    unsigned int flags));
-void cpufreq_remove_update_util_hook(int cpu);
+DECLARE_PER_CPU_READ_MOSTLY(int, sched_load_boost);
 
-static inline unsigned long map_util_freq(unsigned long util,
-					unsigned long freq, unsigned long cap)
-{
-	return (freq + (freq >> 2)) * util / cap;
-}
-#endif /* CONFIG_CPU_FREQ */
-
-extern DEFINE_PER_CPU_READ_MOSTLY(int, sched_load_boost);
-
-#ifdef CONFIG_DYNAMIC_STUNE_BOOST
+#ifdef CONFIG_SCHED_TUNE
 int do_stune_boost(char *st_name, int boost, int *slot);
 int do_stune_sched_boost(char *st_name, int *slot);
 int reset_stune_boost(char *st_name, int slot);
 int set_stune_boost(char *st_name, int boost, int *boost_default);
-#else /* !CONFIG_DYNAMIC_STUNE_BOOST */
+#else /* !CONFIG_SCHED_TUNE */
 static inline int do_stune_boost(char *st_name, int boost, int *slot)
 {
-	return 0;
+    return 0;
 }
+#endif /* CONFIG_SCHED_TUNE */
 
 static inline void set_wake_up_idle(bool enabled)
 {
-	if (enabled)
-		current->flags |= PF_WAKE_UP_IDLE;
-	else
-		current->flags &= ~PF_WAKE_UP_IDLE;
+    if (enabled)
+        current->flags |= PF_WAKE_UP_IDLE;
+    else
+        current->flags &= ~PF_WAKE_UP_IDLE;
 }
 
-#endif
+#endif /* _LINUX_SCHED_H */
