@@ -151,7 +151,11 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync, bool rt
 	 * that RT tasks don't have per-entity load tracking.
 	 */
 	p_util = rt ? 0 : task_util_est(p);
-	uc_min = uclamp_eff_value(p, UCLAMP_MIN);
+	#ifdef CONFIG_UCLAMP_TASK
+		uc_min = uclamp_eff_value(p, UCLAMP_MIN);
+	#else
+		uc_min = 0;
+	#endif
 
 	/*
 	 * Find the best CPU to wake @p on. Although idle_get_state() requires
