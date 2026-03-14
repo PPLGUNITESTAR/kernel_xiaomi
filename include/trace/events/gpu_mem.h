@@ -29,26 +29,26 @@
  */
 TRACE_EVENT(gpu_mem_total,
 
-	TP_PROTO(uint32_t gpu_id, uint32_t pid, uint64_t size),
+    TP_PROTO(u32 gpu_id, u32 pid, u64 size),
 
-	TP_ARGS(gpu_id, pid, size),
+    TP_ARGS(gpu_id, pid, size),
 
-	TP_STRUCT__entry(
-		__field(uint32_t, gpu_id)
-		__field(uint32_t, pid)
-		__field(uint64_t, size)
-	),
+    TP_STRUCT__entry(
+        __field(u32, gpu_id)
+        __field(u32, pid)
+        __field(u64, size)
+    ),
 
-	TP_fast_assign(
-		__entry->gpu_id = gpu_id;
-		__entry->pid = pid;
-		__entry->size = size;
-	),
+    TP_fast_assign(
+        __entry->gpu_id = gpu_id;
+        __entry->pid = pid;
+        __entry->size = size;
+    ),
 
-	TP_printk("gpu_id=%u pid=%u size=%llu",
-		__entry->gpu_id,
-		__entry->pid,
-		__entry->size)
+    TP_printk("gpu_id=%u pid=%u size=%llu",
+        __entry->gpu_id,
+        __entry->pid,
+        __entry->size)
 );
 
 #endif /* _TRACE_GPU_MEM_H */
