@@ -7,8 +7,8 @@ env:
   DEFCONFIG: "sweet_defconfig"
 
   # Clang baru
-  CLANG_VER: "20260130"
-  CLANG_URL: "https://github.com/ZyCromerZ/Clang/releases/download/23.0.0git-20260130-release/Clang-23.0.0git-20260130.tar.gz"
+  CLANG_VER: "20250912"
+  CLANG_URL: "https://github.com/liliumproject/clang/releases/download/20250912/lilium_clang-20250912.tar.gz"
 
   KBUILD_BUILD_USER: "0xArCHDeViL"
   KBUILD_BUILD_HOST: "Gentoo"
