@@ -7,8 +7,8 @@ env:
   DEFCONFIG: "sweet_defconfig"
 
   # Clang baru
-  CLANG_VER: "llvm-weekly-20260315"
-  CLANG_URL: "https://github.com/PurrrsLitterbox/LLVM-weekly/releases/download/20260315-0731-WIB/clang.tar.zst"
+  CLANG_VER: "20260130"
+  CLANG_URL: "https://github.com/ZyCromerZ/Clang/releases/download/23.0.0git-20260130-release/Clang-23.0.0git-20260130.tar.gz"
 
   KBUILD_BUILD_USER: "0xArCHDeViL"
   KBUILD_BUILD_HOST: "Gentoo"
