@@ -6,7 +6,6 @@ env:
   CODENAME: "Asphyxia"
   DEFCONFIG: "sweet_defconfig"
 
-  # Clang baru
   CLANG_VER: "20250912"
   CLANG_URL: "https://github.com/liliumproject/clang/releases/download/20250912/lilium_clang-20250912.tar.gz"
 
@@ -14,12 +13,26 @@ env:
   KBUILD_BUILD_HOST: "Gentoo"
   TZ: "Asia/Jakarta"
 
+  KSU_SETUP_URI: "https://github.com/ReSukiSU/ReSukiSU/raw/refs/heads/main/kernel/setup.sh"
+  KSU_BRANCH: "main"
+  KSU_GENERAL_PATCH: "https://github.com/JackA1ltman/NonGKI_Kernel_Build_2nd/raw/refs/heads/mainline/Patches/susfs_inline_hook_patches.sh"
+  SUSFS_PATCH: "https://github.com/JackA1ltman/NonGKI_Kernel_Build_2nd/raw/refs/heads/mainline/Patches/Patch/susfs_patch_to_4.14.patch"
+
 on:
   workflow_dispatch:
+    inputs:
+      enable_susfs:
+        description: "Enable SUSFS"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "true"
+          - "false"
 
 jobs:
   build:
-    name: "AOSP-KSU BUILD"
+    name: "BUILD"
     runs-on: ubuntu-22.04
 
     steps:
@@ -60,7 +73,18 @@ jobs:
 
       - name: "🧩 KernelSU Integration"
         run: |
-          curl -LSs https://raw.githubusercontent.com/backslashxx/KernelSU/refs/heads/master/kernel/setup.sh | bash
+          curl -LSs "$KSU_SETUP_URI" | bash -s "$KSU_BRANCH"
+
+      - name: "🔬 Apply SUSFS Patches"
+        if: ${{ github.event.inputs.enable_susfs == 'true' }}
+        run: |
+          echo ">>> Applying general inline hook patch..."
+          wget -qO- "$KSU_GENERAL_PATCH" | bash
+
+          echo ">>> Applying SUSFS kernel patch..."
+          wget -qO- "$SUSFS_PATCH" | patch -s -p1 --fuzz=5
+
+          echo ">>> SUSFS patching done."
 
       - name: "Build Kernel"
         run: |
