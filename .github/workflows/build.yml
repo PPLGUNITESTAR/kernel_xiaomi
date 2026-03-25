@@ -17,22 +17,24 @@ env:
   KSU_BRANCH: "main"
   KSU_GENERAL_PATCH: "https://github.com/JackA1ltman/NonGKI_Kernel_Build_2nd/raw/refs/heads/mainline/Patches/susfs_inline_hook_patches.sh"
   SUSFS_PATCH: "https://github.com/JackA1ltman/NonGKI_Kernel_Build_2nd/raw/refs/heads/mainline/Patches/Patch/susfs_patch_to_4.14.patch"
+  MAIN_DEFCONFIG: "arch/arm64/configs/sweet_defconfig"
 
 on:
   workflow_dispatch:
     inputs:
-      enable_susfs:
-        description: "Enable SUSFS"
-        required: false
-        default: "false"
+      ksu_selected:
+        description: "KernelSU variant"
+        required: true
+        default: "zako"
         type: choice
         options:
-          - "true"
-          - "false"
+          - "zako"
+          - "zako_susfs"
+          - ""
 
 jobs:
   build:
-    name: "BUILD"
+    name: "AOSP-KSU BUILD"
     runs-on: ubuntu-22.04
 
     steps:
@@ -71,20 +73,47 @@ jobs:
           ccache -o compression=true
           ccache -z
 
-      - name: "🧩 KernelSU Integration"
+      - name: "🧩 KernelSU — zako (no SUSFS)"
+        if: ${{ github.event.inputs.ksu_selected == 'zako' }}
         run: |
           curl -LSs "$KSU_SETUP_URI" | bash -s "$KSU_BRANCH"
+          curl -LSs "$KSU_GENERAL_PATCH" | bash
+          echo "CONFIG_KSU=y"                        >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_MULTI_MANAGER_SUPPORT=y"  >> $MAIN_DEFCONFIG
+          echo "CONFIG_KPM=n"                        >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_MANUAL_HOOK=y"            >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS=n"                  >> $MAIN_DEFCONFIG
+          echo "CONFIG_HAVE_SYSCALL_TRACEPOINTS=y"   >> $MAIN_DEFCONFIG
 
-      - name: "🔬 Apply SUSFS Patches"
-        if: ${{ github.event.inputs.enable_susfs == 'true' }}
+      - name: "🔬 KernelSU — zako_susfs (with SUSFS)"
+        if: ${{ github.event.inputs.ksu_selected == 'zako_susfs' }}
         run: |
-          echo ">>> Applying general inline hook patch..."
-          wget -qO- "$KSU_GENERAL_PATCH" | bash
+          curl -LSs "$KSU_SETUP_URI" | bash -s "$KSU_BRANCH"
+          curl -LSs "$KSU_GENERAL_PATCH" | bash
 
           echo ">>> Applying SUSFS kernel patch..."
           wget -qO- "$SUSFS_PATCH" | patch -s -p1 --fuzz=5
 
-          echo ">>> SUSFS patching done."
+          echo "CONFIG_KSU=y"                                        >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_MULTI_MANAGER_SUPPORT=y"                  >> $MAIN_DEFCONFIG
+          echo "CONFIG_KPM=n"                                        >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_MANUAL_HOOK=y"                            >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS=y"                                  >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=n"                         >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=n"                        >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y"                        >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y"                      >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y"                       >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y"           >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y"      >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=n"                    >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_SUS_MAP=n"                          >> $MAIN_DEFCONFIG
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=n"                       >> $MAIN_DEFCONFIG
+          echo "CONFIG_HAVE_SYSCALL_TRACEPOINTS=y"                   >> $MAIN_DEFCONFIG
+
+      - name: "⏭️ KernelSU — skipped"
+        if: ${{ github.event.inputs.ksu_selected == '' }}
+        run: echo "No KernelSU variant selected, skipping."
 
       - name: "Build Kernel"
         run: |
