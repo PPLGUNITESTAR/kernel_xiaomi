@@ -6,6 +6,7 @@ env:
   CODENAME: "Asphyxia"
   DEFCONFIG: "sweet_defconfig"
 
+  # Clang
   CLANG_VER: "20250912"
   CLANG_URL: "https://github.com/liliumproject/clang/releases/download/20250912/lilium_clang-20250912.tar.gz"
 
@@ -13,10 +14,13 @@ env:
   KBUILD_BUILD_HOST: "Gentoo"
   TZ: "Asia/Jakarta"
 
-  KSU_SETUP_URI: "https://github.com/ReSukiSU/ReSukiSU/raw/refs/heads/main/kernel/setup.sh"
-  KSU_BRANCH: "main"
+  # KernelSU — backslashxx
+  KSU_SETUP_URI: "https://raw.githubusercontent.com/backslashxx/KernelSU/refs/heads/master/kernel/setup.sh"
+
+  # SUSFS patches
   KSU_GENERAL_PATCH: "https://github.com/JackA1ltman/NonGKI_Kernel_Build_2nd/raw/refs/heads/mainline/Patches/susfs_inline_hook_patches.sh"
   SUSFS_PATCH: "https://github.com/JackA1ltman/NonGKI_Kernel_Build_2nd/raw/refs/heads/mainline/Patches/Patch/susfs_patch_to_4.14.patch"
+
   MAIN_DEFCONFIG: "arch/arm64/configs/sweet_defconfig"
 
 on:
@@ -25,12 +29,11 @@ on:
       ksu_selected:
         description: "KernelSU variant"
         required: true
-        default: "zako"
+        default: "normal"
         type: choice
         options:
-          - "zako"
-          - "zako_susfs"
-          - ""
+          - "normal"
+          - "susfs"
 
 jobs:
   build:
@@ -73,22 +76,15 @@ jobs:
           ccache -o compression=true
           ccache -z
 
-      - name: "🧩 KernelSU — zako (no SUSFS)"
-        if: ${{ github.event.inputs.ksu_selected == 'zako' }}
+      - name: "🧩 KernelSU — normal (no SUSFS)"
+        if: ${{ github.event.inputs.ksu_selected == 'normal' }}
         run: |
-          curl -LSs "$KSU_SETUP_URI" | bash -s "$KSU_BRANCH"
-          curl -LSs "$KSU_GENERAL_PATCH" | bash
-          echo "CONFIG_KSU=y"                        >> $MAIN_DEFCONFIG
-          echo "CONFIG_KSU_MULTI_MANAGER_SUPPORT=y"  >> $MAIN_DEFCONFIG
-          echo "CONFIG_KPM=n"                        >> $MAIN_DEFCONFIG
-          echo "CONFIG_KSU_MANUAL_HOOK=y"            >> $MAIN_DEFCONFIG
-          echo "CONFIG_KSU_SUSFS=n"                  >> $MAIN_DEFCONFIG
-          echo "CONFIG_HAVE_SYSCALL_TRACEPOINTS=y"   >> $MAIN_DEFCONFIG
+          curl -LSs "$KSU_SETUP_URI" | bash
 
-      - name: "🔬 KernelSU — zako_susfs (with SUSFS)"
-        if: ${{ github.event.inputs.ksu_selected == 'zako_susfs' }}
+      - name: "🔬 KernelSU — susfs (with SUSFS)"
+        if: ${{ github.event.inputs.ksu_selected == 'susfs' }}
         run: |
-          curl -LSs "$KSU_SETUP_URI" | bash -s "$KSU_BRANCH"
+          curl -LSs "$KSU_SETUP_URI" | bash
           curl -LSs "$KSU_GENERAL_PATCH" | bash
 
           echo ">>> Applying SUSFS kernel patch..."
@@ -110,10 +106,6 @@ jobs:
           echo "CONFIG_KSU_SUSFS_SUS_MAP=n"                          >> $MAIN_DEFCONFIG
           echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=n"                       >> $MAIN_DEFCONFIG
           echo "CONFIG_HAVE_SYSCALL_TRACEPOINTS=y"                   >> $MAIN_DEFCONFIG
-
-      - name: "⏭️ KernelSU — skipped"
-        if: ${{ github.event.inputs.ksu_selected == '' }}
-        run: echo "No KernelSU variant selected, skipping."
 
       - name: "Build Kernel"
         run: |
