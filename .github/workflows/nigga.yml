@@ -1,0 +1,242 @@
+name: "Build Kernel"
+
+env:
+  # --- NERV HQ CONFIGURATION ---
+  KERNEL_NAME: "Penis"
+  DEVICE: "Sweet"
+  CODENAME: "EvilShit"
+  DEFCONFIG: "sweet_defconfig"
+  
+  # --- MAGI SYSTEM IDENTITY ---
+  KBUILD_BUILD_USER: "ArCHDeViL"
+  KBUILD_BUILD_HOST: "EviLZonE"
+  TZ: "Asia/Jakarta"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  # ==================================================================
+  # PHASE 1: PARALLEL SYNCHRONIZATION & BUILD (Zero-Cache I/O)
+  # ==================================================================
+  synchronization:
+    name: "🛡️ ${{ matrix.unit }} // BUILD"
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - unit: "UNIT-00 (AOSP-STD)"
+            variant: "AOSP"
+            ksu: false
+            patch_miui: false
+          - unit: "UNIT-01 (MIUI-STD)"
+            variant: "MIUI"
+            ksu: false
+            patch_miui: true
+          - unit: "UNIT-02 (AOSP-KSU)"
+            variant: "AOSP-KSU"
+            ksu: true
+            patch_miui: false
+          - unit: "UNIT-03 (MIUI-KSU)"
+            variant: "MIUI-KSU"
+            ksu: true
+            patch_miui: true
+
+    steps:
+      - name: "⬢ [INIT] :: SOURCE_CHECKOUT"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: "⚡ [CACHE] :: CCACHE_ACCELERATION"
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ matrix.variant }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-${{ matrix.variant }}-
+            ${{ runner.os }}-ccache-
+            
+      - name: "⬢ [SYSTEM] :: DEPENDENCIES"
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+          bc bison build-essential ccache curl flex g++-multilib gcc-multilib \
+          git libncurses5-dev libssl-dev libxml2 libxml2-utils lzop make \
+          python3 python3-pip unzip zip zlib1g-dev aptitude tar aria2 perl wget lz4 python-is-python3
+          
+      - name: "🔧 [DOWNLOAD] :: MULTIPLEX TOOLCHAINS (HORIZONTAL SCALING)"
+        run: |
+          echo "⚙️ Menginisiasi tarikan paralel toolchain untuk menghindari korupsi ELF Cache..."
+          mkdir -p toolchains && cd toolchains
+          
+          # Neutron Clang
+          mkdir clang && cd clang
+          curl -LO "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman"
+          chmod a+x antman
+          ./antman -S
+          ./antman --patch=glibc
+          cd ..
+          
+          # Greenforce GCC64 & GCC32
+          git clone https://github.com/greenforce-project/gcc-arm64 -b main --depth=1 gcc64
+          git clone https://github.com/greenforce-project/gcc-arm -b main --depth=1 gcc32
+
+      - name: "⚙️ [CONFIG] :: CCACHE_SETUP"
+        run: |
+          export PATH="/usr/lib/ccache:$PATH"
+          ccache -M 2G
+          ccache -o compression=true
+          ccache -o compression_level=1
+          ccache -z
+          
+      - name: "🧹 [MOD] :: KSU_INTEGRATION (SYSCALL METHOD)"
+        if: matrix.ksu == true
+        run: |
+          echo "⚠️ INITIATING EVILSHIT PROTOCOL VIA SYSCALL EXPLOIT..."
+          curl -LSs "https://raw.githubusercontent.com/Mr-Morat/KernelSU-Next/stable/kernel/setup.sh" | bash -s syscall
+          
+      - name: "🧹 [MOD] :: KSU_PURGE"
+        if: matrix.ksu == false
+        run: |
+          sed -i '/CONFIG_KSU/d' arch/arm64/configs/${{ env.DEFCONFIG }}
+          
+      - name: "🩹 [PATCH] :: MIUI_OPTIMIZATION"
+        if: matrix.patch_miui == true
+        run: |
+          python3 -c "
+          import os, re
+          targets = ['dsi-panel-k6-38-0c-0a-fhd-dsc-video.dtsi', 'dsi-panel-k6-38-0e-0b-fhd-dsc-video.dtsi']
+          for root, dirs, files in os.walk('.'):
+              for file in files:
+                  if file in targets:
+                      path = os.path.join(root, file)
+                      with open(path, 'r') as f: content = f.read()
+                      content = re.sub(r'qcom,mdss-pan-physical-width-dimension\s*=\s*<[0-9]+>;', 'qcom,mdss-pan-physical-width-dimension = <695>;', content)
+                      content = re.sub(r'qcom,mdss-pan-physical-height-dimension\s*=\s*<[0-9]+>;', 'qcom,mdss-pan-physical-height-dimension = <1546>;', content)
+                      with open(path, 'w') as f: f.write(content)
+                      print(f'Patched dimensions for MIUI in {path}')
+          "
+          
+      - name: "⚔️ [COMPILE] :: KERNEL_BUILD (STANDARD COMPRESSION)"
+        run: |
+          export CLANG_PATH="${{ github.workspace }}/toolchains/clang"
+          export GCC64_PATH="${{ github.workspace }}/toolchains/gcc64"
+          export GCC32_PATH="${{ github.workspace }}/toolchains/gcc32"
+          export PATH="$CLANG_PATH/bin:$GCC64_PATH/bin:$GCC32_PATH/bin:$PATH"
+          
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export KBUILD_BUILD_USER="${{ env.KBUILD_BUILD_USER }}"
+          export KBUILD_BUILD_HOST="${{ env.KBUILD_BUILD_HOST }}"
+          
+          make O=out ${DEFCONFIG}
+          
+          # Injeksi parameter LLVM absolut untuk membunuh ambiguitas pathing Make
+          # Mengkompilasi target Image.gz (Standar GZIP bawaan Makefile)
+          make -j$(nproc --all) O=out ARCH=arm64 \
+            LLVM=1 LLVM_IAS=1 \
+            CC="ccache clang" \
+            LD=ld.lld AR=llvm-ar NM=llvm-nm \
+            OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
+            CLANG_TRIPLE="aarch64-linux-gnu-" \
+            CROSS_COMPILE="${GCC64_PATH}/bin/aarch64-elf-" \
+            CROSS_COMPILE_ARM32="${GCC32_PATH}/bin/arm-eabi-" \
+            CROSS_COMPILE_COMPAT="${GCC32_PATH}/bin/arm-eabi-" \
+            Image.gz dtbo.img dtb.img
+            
+      - name: "📦 [PACKAGE] :: ANYKERNEL3_ZIP (STANDARD ZIPPING)"
+        run: |
+          git clone -q https://github.com/RapliVx/AnyKernel3.git -b sweet AnyKernel3
+          
+          cat > AnyKernel3/banner << 'EOF'
+          ▀████▀███▄   ▀███▀  ▄▄█▀▀██▄   ▀███▀▀▀██▄  ▀████▀ ▀███▀ 
+            ██   ███▄    █  ▄██▀    ▀██▄   ██   ▀██▄   ██   ▄█▀   
+            ██   █ ███   █  ██▀      ▀██   ██   ▄██    ██ ▄█▀     
+            ██   █  ▀██▄ █  ██        ██   ███████     █████▄     
+            ██   █   ▀██▄█  ██▄      ▄██   ██  ██▄     ██  ███▄   
+            ██   █     ███  ▀██▄    ▄██▀   ██   ▀██▄   ██   ▀██▄  
+          ▄████▄███▄    ██    ▀▀████▀▀   ▄████▄  ▄███▄████▄ ▄███▄ 
+                                                                  
+            [ GOD'S IN HIS HEAVEN, ALL'S RIGHT WITH THE WORLD ]   
+                       PROJECT EVA : EVILSHIT PROTOCOL             
+          EOF
+          
+          # Memasukkan Image.gz murni ke AnyKernel3
+          cp -f out/arch/arm64/boot/Image.gz AnyKernel3/
+          cp -f out/arch/arm64/boot/dtb.img AnyKernel3/
+          cp -f out/arch/arm64/boot/dtbo.img AnyKernel3/
+          
+          cd AnyKernel3
+          ZIP_NAME="${KERNEL_NAME}-${{ matrix.variant }}-${CODENAME}-$(date +'%Y%m%d-%H%M').zip"
+          
+          # Zipping standar
+          zip -r9 "../$ZIP_NAME" * -x .git README.md
+          
+          echo "ZIP_ARTIFACT=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: "📤 [UPLOAD] :: GITHUB ARTIFACT"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP_ARTIFACT }}
+          path: ${{ env.ZIP_ARTIFACT }}
+          compression-level: 0 
+
+  # ==================================================================
+  # PHASE 2: DEPLOYMENT (Rich Release Engine)
+  # ==================================================================
+  deployment:
+    name: "🧬 PROTOCOL: FINAL_DOGMA"
+    runs-on: ubuntu-24.04
+    needs: [synchronization]
+    permissions:
+      contents: write
+      
+    steps:
+      - name: "📥 [COLLECT] :: ALL ARTIFACTS"
+        uses: actions/download-artifact@v4
+        with:
+          path: ./release-assets
+          merge-multiple: true
+
+      - name: "📅 [GENERATE] :: RELEASE IDENTITY"
+        run: |
+          echo "TAG_NAME=EVA-$(date +'%Y%m%d')-R${{ github.run_number }}" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(TZ=Asia/Jakarta date +'%A, %d %B %Y | %H:%M WIB')" >> $GITHUB_ENV
+
+      - name: "⬆️ [RELEASE] :: GITHUB_RELEASE"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: "ProjectEVA: PROTOCOL EVILSHIT [${{ env.TAG_NAME }}]"
+          files: ./release-assets/*.zip
+          body: |
+            ### ⚠️ NERV SECURITY CLEARANCE GRANTED
+            **Codename:** `${{ env.CODENAME }}`
+            **Target Device:** `${{ env.DEVICE }}` (Redmi Note 10 Pro)
+            **Build Date:** `${{ env.BUILD_DATE }}`
+            
+            #### 🔬 ARCHITECTURE INFRASTRUCTURE
+            * **OS Virtualization:** Ubuntu 24.04 (Noble Numbat)
+            * **Toolchain:** Neutron Clang (Latest Stable) + Greenforce GCC64 & GCC32
+            * **Compression:** Standard GZIP (`Image.gz`)
+            * **Host Identity:** `${{ env.KBUILD_BUILD_HOST }}`
+            * **User Identity:** `${{ env.KBUILD_BUILD_USER }}`
+            
+            #### 📦 DEPLOYMENT UNITS (4 STANDARD-COMPRESSED FILES)
+            > Semua file *binary* telah dikompilasi secara paralel dan diarsip menggunakan arsitektur AnyKernel3 dengan *monospaced ASCII Art banner* injeksi khusus.
+            
+            | Unit / Variant | KernelSU Integration | MIUI Optimization Patch |
+            | :--- | :---: | :---: |
+            | **UNIT-00 (AOSP)** | ❌ | ❌ |
+            | **UNIT-01 (MIUI)** | ❌ | ✅ |
+            | **UNIT-02 (AOSP-KSU)** | ✅ (Syscall) | ❌ |
+            | **UNIT-03 (MIUI-KSU)** | ✅ (Syscall) | ✅ |
+            
+            ---
+            *Synchronized output guarantees 4 separate flashable archives. End of line.*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
