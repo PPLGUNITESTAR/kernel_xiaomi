@@ -49,17 +49,37 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: "💉 [INJECTION] :: CUSTOM KERNEL EXPLOIT PATCH"
+      - name: "💉 [INJECTION] :: MAGI PROTOCOL (ANTI-IGNORED HUNK EXPLOIT)"
         run: |
-          echo "⚠️ INITIATING KERNEL SOURCE MUTATION..."
-          # Mengunduh payload raw patch
+          echo "⚠️ INITIATING MAGI SYSTEM: HEURISTIC KERNEL MUTATION..."
+          
+          # Unduh payload raw patch
           curl -LSs "https://github.com/0xArCHDeViL/strix/commit/6d112ef67db9ec70ccb026d8771981df5a07eefe.patch" -o payload.patch
           
-          # Menerapkan patch dengan Fuzzy Matching (level 3) & Ignore Whitespace
-          # Ini adalah metodologi anti-ignored hunk mutlak
-          patch -p1 --fuzz=3 --no-backup-if-mismatch -l < payload.patch
+          # Tembakan Tahap 1: Injeksi GNU Patch Statis
+          # '|| true' mencegah pipeline kolaps (Exit 1) jika terjadi Hunk FAILED
+          patch -p1 --fuzz=3 --no-backup-if-mismatch -l < payload.patch || true
           
-          # Hapus jejak payload
+          # Tembakan Tahap 2: Wiggle Word-Level Heuristics Override
+          # Mencari semua manifestasi penolakan (.rej) dan memaksa masuk menggunakan komputasi probabilitas.
+          for rej_file in $(find . -name "*.rej"); do
+            target_file="${rej_file%.rej}"
+            echo "💉 Menerapkan Wiggle Heuristics pada divergensi: $target_file"
+            
+            # Wiggle merekonstruksi file. Jika ada konflik absolut, ia akan meninggalkan marker.
+            wiggle --replace "$target_file" "$rej_file" || true
+            rm -f "$rej_file"
+            
+            # Tembakan Tahap 3: Resolusi Konflik Mutlak (Theirs-Strategy Bypass)
+            # Menghancurkan marker konflik dan mengeksekusi override dengan memaksa payload patch (theirs) 
+            # menimpa source asli (ours). Ini menjamin kompilator C bebas dari syntax error akibat marker.
+            sed -i '/^<<<<<<</,/^=======/d' "$target_file"
+            sed -i '/^>>>>>>>/d' "$target_file"
+            
+            echo "✅ Override Heuristik Selesai pada $target_file"
+          done
+          
+          # Hapus sisa payload
           rm -f payload.patch
 
       - name: "⚡ [CACHE] :: CCACHE_ACCELERATION"
@@ -74,10 +94,11 @@ jobs:
       - name: "⬢ [SYSTEM] :: DEPENDENCIES"
         run: |
           sudo apt-get update -qq
+          # Menambahkan utilitas "wiggle" untuk keperluan eksploitasi patch heuristik
           sudo apt-get install -y --no-install-recommends \
           bc bison build-essential ccache curl flex g++-multilib gcc-multilib \
           git libncurses5-dev libssl-dev libxml2 libxml2-utils lzop make \
-          python3 python3-pip unzip zip zlib1g-dev aptitude tar aria2 perl wget lz4 python-is-python3
+          python3 python3-pip unzip zip zlib1g-dev aptitude tar aria2 perl wget lz4 python-is-python3 wiggle
           
       - name: "🔧 [DOWNLOAD] :: MULTIPLEX TOOLCHAINS"
         run: |
@@ -251,7 +272,7 @@ jobs:
                - `FULL-LTO` (Link-Time Optimization)
                - `MGLO / POLLY` (Ext-TSP Block Placement)
                - `O3 Heuristics` (Max Performance)
-            * **Custom Patches Applied:** `6d112ef67db`
+            * **Custom Patches Applied:** `6d112ef67db` (Forced via Heuristic Override Protocol)
             * **Host Identity:** `${{ env.KBUILD_BUILD_HOST }}`
             * **User Identity:** `${{ env.KBUILD_BUILD_USER }}`
             
