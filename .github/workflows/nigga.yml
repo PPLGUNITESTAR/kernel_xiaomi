@@ -17,7 +17,7 @@ on:
 
 jobs:
   # ==================================================================
-  # PHASE 1: PARALLEL SYNCHRONIZATION & EXTREME OPTIMIZATION
+  # PHASE 1: PARALLEL SYNCHRONIZATION & BUILD (Zero-Cache I/O)
   # ==================================================================
   synchronization:
     name: "🛡️ ${{ matrix.unit }} // BUILD"
@@ -49,39 +49,6 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: "💉 [INJECTION] :: MAGI PROTOCOL (ANTI-IGNORED HUNK EXPLOIT)"
-        run: |
-          echo "⚠️ INITIATING MAGI SYSTEM: HEURISTIC KERNEL MUTATION..."
-          
-          # Unduh payload raw patch
-          curl -LSs "https://github.com/0xArCHDeViL/strix/commit/6d112ef67db9ec70ccb026d8771981df5a07eefe.patch" -o payload.patch
-          
-          # Tembakan Tahap 1: Injeksi GNU Patch Statis
-          # '|| true' mencegah pipeline kolaps (Exit 1) jika terjadi Hunk FAILED
-          patch -p1 --fuzz=3 --no-backup-if-mismatch -l < payload.patch || true
-          
-          # Tembakan Tahap 2: Wiggle Word-Level Heuristics Override
-          # Mencari semua manifestasi penolakan (.rej) dan memaksa masuk menggunakan komputasi probabilitas.
-          for rej_file in $(find . -name "*.rej"); do
-            target_file="${rej_file%.rej}"
-            echo "💉 Menerapkan Wiggle Heuristics pada divergensi: $target_file"
-            
-            # Wiggle merekonstruksi file. Jika ada konflik absolut, ia akan meninggalkan marker.
-            wiggle --replace "$target_file" "$rej_file" || true
-            rm -f "$rej_file"
-            
-            # Tembakan Tahap 3: Resolusi Konflik Mutlak (Theirs-Strategy Bypass)
-            # Menghancurkan marker konflik dan mengeksekusi override dengan memaksa payload patch (theirs) 
-            # menimpa source asli (ours). Ini menjamin kompilator C bebas dari syntax error akibat marker.
-            sed -i '/^<<<<<<</,/^=======/d' "$target_file"
-            sed -i '/^>>>>>>>/d' "$target_file"
-            
-            echo "✅ Override Heuristik Selesai pada $target_file"
-          done
-          
-          # Hapus sisa payload
-          rm -f payload.patch
-
       - name: "⚡ [CACHE] :: CCACHE_ACCELERATION"
         uses: actions/cache@v4
         with:
@@ -94,15 +61,14 @@ jobs:
       - name: "⬢ [SYSTEM] :: DEPENDENCIES"
         run: |
           sudo apt-get update -qq
-          # Menambahkan utilitas "wiggle" untuk keperluan eksploitasi patch heuristik
           sudo apt-get install -y --no-install-recommends \
           bc bison build-essential ccache curl flex g++-multilib gcc-multilib \
           git libncurses5-dev libssl-dev libxml2 libxml2-utils lzop make \
-          python3 python3-pip unzip zip zlib1g-dev aptitude tar aria2 perl wget lz4 python-is-python3 wiggle
+          python3 python3-pip unzip zip zlib1g-dev aptitude tar aria2 perl wget lz4 python-is-python3
           
-      - name: "🔧 [DOWNLOAD] :: MULTIPLEX TOOLCHAINS"
+      - name: "🔧 [DOWNLOAD] :: MULTIPLEX TOOLCHAINS (HORIZONTAL SCALING)"
         run: |
-          echo "⚙️ Menginisiasi tarikan paralel toolchain..."
+          echo "⚙️ Menginisiasi tarikan paralel toolchain untuk menghindari korupsi ELF Cache..."
           mkdir -p toolchains && cd toolchains
           
           # Neutron Clang
@@ -152,25 +118,8 @@ jobs:
                       with open(path, 'w') as f: f.write(content)
                       print(f'Patched dimensions for MIUI in {path}')
           "
-
-      - name: "🧬 [MUTATION] :: LTO & KERNEL CONFIG OVERRIDE"
-        run: |
-          echo "⚙️ Memanipulasi arsitektur defconfig via Kernel Scripts..."
-          export ARCH=arm64
           
-          ./scripts/config --file arch/arm64/configs/${{ env.DEFCONFIG }} \
-            -e LTO \
-            -e LTO_CLANG \
-            -e LTO_CLANG_FULL \
-            -e THINLTO \
-            -d LTO_NONE \
-            -d LTO_CLANG_THIN
-            
-          ./scripts/config --file arch/arm64/configs/${{ env.DEFCONFIG }} \
-            -e CC_OPTIMIZE_FOR_PERFORMANCE_O3 \
-            -d CC_OPTIMIZE_FOR_SIZE
-            
-      - name: "⚔️ [COMPILE] :: KERNEL_BUILD (MAGI SYSTEM EXODIA)"
+      - name: "⚔️ [COMPILE] :: KERNEL_BUILD (STANDARD COMPRESSION)"
         run: |
           export CLANG_PATH="${{ github.workspace }}/toolchains/clang"
           export GCC64_PATH="${{ github.workspace }}/toolchains/gcc64"
@@ -184,6 +133,8 @@ jobs:
           
           make O=out ${DEFCONFIG}
           
+          # Injeksi parameter LLVM absolut untuk membunuh ambiguitas pathing Make
+          # Mengkompilasi target Image.gz (Standar GZIP bawaan Makefile)
           make -j$(nproc --all) O=out ARCH=arm64 \
             LLVM=1 LLVM_IAS=1 \
             CC="ccache clang" \
@@ -193,10 +144,9 @@ jobs:
             CROSS_COMPILE="${GCC64_PATH}/bin/aarch64-elf-" \
             CROSS_COMPILE_ARM32="${GCC32_PATH}/bin/arm-eabi-" \
             CROSS_COMPILE_COMPAT="${GCC32_PATH}/bin/arm-eabi-" \
-            KCFLAGS="-O3 -mllvm -enable-ext-tsp-block-placement=1 -mllvm -polly" \
             Image.gz dtbo.img dtb.img
             
-      - name: "📦 [PACKAGE] :: ANYKERNEL3_ZIP (STANDARD)"
+      - name: "📦 [PACKAGE] :: ANYKERNEL3_ZIP (STANDARD ZIPPING)"
         run: |
           git clone -q https://github.com/RapliVx/AnyKernel3.git -b sweet AnyKernel3
           
@@ -210,10 +160,10 @@ jobs:
           ▄████▄███▄    ██    ▀▀████▀▀   ▄████▄  ▄███▄████▄ ▄███▄ 
                                                                   
             [ GOD'S IN HIS HEAVEN, ALL'S RIGHT WITH THE WORLD ]   
-            [ EXODIA: PGO | BOLT | FULL-LTO | MGLO ACTIVATED  ]
                        PROJECT EVA : EVILSHIT PROTOCOL             
           EOF
           
+          # Memasukkan Image.gz murni ke AnyKernel3
           cp -f out/arch/arm64/boot/Image.gz AnyKernel3/
           cp -f out/arch/arm64/boot/dtb.img AnyKernel3/
           cp -f out/arch/arm64/boot/dtbo.img AnyKernel3/
@@ -221,7 +171,9 @@ jobs:
           cd AnyKernel3
           ZIP_NAME="${KERNEL_NAME}-${{ matrix.variant }}-${CODENAME}-$(date +'%Y%m%d-%H%M').zip"
           
+          # Zipping standar
           zip -r9 "../$ZIP_NAME" * -x .git README.md
+          
           echo "ZIP_ARTIFACT=$ZIP_NAME" >> $GITHUB_ENV
 
       - name: "📤 [UPLOAD] :: GITHUB ARTIFACT"
@@ -268,15 +220,11 @@ jobs:
             #### 🔬 ARCHITECTURE INFRASTRUCTURE
             * **OS Virtualization:** Ubuntu 24.04 (Noble Numbat)
             * **Toolchain:** Neutron Clang (Latest Stable) + Greenforce GCC64 & GCC32
-            * **Exodia Optimizations:**
-               - `FULL-LTO` (Link-Time Optimization)
-               - `MGLO / POLLY` (Ext-TSP Block Placement)
-               - `O3 Heuristics` (Max Performance)
-            * **Custom Patches Applied:** `6d112ef67db` (Forced via Heuristic Override Protocol)
+            * **Compression:** Standard GZIP (`Image.gz`)
             * **Host Identity:** `${{ env.KBUILD_BUILD_HOST }}`
             * **User Identity:** `${{ env.KBUILD_BUILD_USER }}`
             
-            #### 📦 DEPLOYMENT UNITS (4 FILES)
+            #### 📦 DEPLOYMENT UNITS (4 STANDARD-COMPRESSED FILES)
             > Semua file *binary* telah dikompilasi secara paralel dan diarsip menggunakan arsitektur AnyKernel3 dengan *monospaced ASCII Art banner* injeksi khusus.
             
             | Unit / Variant | KernelSU Integration | MIUI Optimization Patch |
