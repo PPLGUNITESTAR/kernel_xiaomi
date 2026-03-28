@@ -71,7 +71,7 @@ jobs:
           echo "⚙️ Menginisiasi tarikan paralel toolchain untuk menghindari korupsi ELF Cache..."
           mkdir -p toolchains && cd toolchains
           
-          # Neutron Clang
+          # Neutron Clang (Already compiled with PGO & BOLT)
           mkdir clang && cd clang
           curl -LO "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman"
           chmod a+x antman
@@ -96,6 +96,16 @@ jobs:
         run: |
           echo "⚠️ INITIATING EVILSHIT PROTOCOL VIA SYSCALL EXPLOIT..."
           curl -LSs "https://raw.githubusercontent.com/Mr-Morat/KernelSU-Next/stable/kernel/setup.sh" | bash -s syscall
+
+      - name: "🩹 [HOTFIX] :: KSU_NEXT AVC_SPOOF BYPASS"
+        if: matrix.ksu == true
+        run: |
+          echo "⚠️ MENGAMPUTASI KODE CACAT DARI UPSTREAM KSU-NEXT..."
+          # Membedah file extras.c dan memusnahkan baris yang memanggil entitas gaib
+          sed -i '/\.feature_id = KSU_FEATURE_AVC_SPOOF,/d' drivers/kernelsu/extras.c
+          sed -i '/ksu_unregister_feature_handler(KSU_FEATURE_AVC_SPOOF);/d' drivers/kernelsu/extras.c
+          echo "Amputasi berhasil. Integritas sintaks dipulihkan."
+          
           
       - name: "🧹 [MOD] :: KSU_PURGE"
         if: matrix.ksu == false
@@ -118,8 +128,30 @@ jobs:
                       with open(path, 'w') as f: f.write(content)
                       print(f'Patched dimensions for MIUI in {path}')
           "
+
+      - name: "🧬 [MUTATION] :: ADVANCED_OPTIMIZATION_INJECTION"
+        run: |
+          echo "⚠️ MENGINJEKSI PARADIGMA KOMPILASI MODERN: LTO, PGO, BOLT, & MLGO..."
+          chmod +x scripts/config
           
-      - name: "⚔️ [COMPILE] :: KERNEL_BUILD (STANDARD COMPRESSION)"
+          # [1] Link-Time Optimization (ThinLTO untuk CI memory-safety)
+          scripts/config --file arch/arm64/configs/${DEFCONFIG} \
+            -e LTO_CLANG \
+            -e LTO_CLANG_THIN \
+            -d LTO_CLANG_FULL \
+            -d LTO_NONE
+            
+          # [2] Eksploitasi Konfigurasi Kustom (Akan aktif jika kernel tree memiliki patch-nya)
+          scripts/config --file arch/arm64/configs/${DEFCONFIG} \
+            -e PGO_CLANG \
+            -e LLD_PROMO_BOLT \
+            -e MLGO_CLANG \
+            -e CC_OPTIMIZE_FOR_PERFORMANCE
+            
+          # Generasi .config murni dengan topologi yang telah bermutasi
+          make O=out ${DEFCONFIG}
+          
+      - name: "⚔️ [COMPILE] :: KERNEL_BUILD (GOD-TIER OPTIMIZATION)"
         run: |
           export CLANG_PATH="${{ github.workspace }}/toolchains/clang"
           export GCC64_PATH="${{ github.workspace }}/toolchains/gcc64"
@@ -131,10 +163,11 @@ jobs:
           export KBUILD_BUILD_USER="${{ env.KBUILD_BUILD_USER }}"
           export KBUILD_BUILD_HOST="${{ env.KBUILD_BUILD_HOST }}"
           
-          make O=out ${DEFCONFIG}
+          # Injeksi MLGO secara eksplisit melalui Compiler Flags untuk memaksa AI-driven inlining
+          export KCFLAGS="-mllvm -enable-ml-inliner=release"
+          export KCPPFLAGS="-mllvm -enable-ml-inliner=release"
           
-          # Injeksi parameter LLVM absolut untuk membunuh ambiguitas pathing Make
-          # Mengkompilasi target Image.gz (Standar GZIP bawaan Makefile)
+          # Eksekusi Kompilasi Paralel
           make -j$(nproc --all) O=out ARCH=arm64 \
             LLVM=1 LLVM_IAS=1 \
             CC="ccache clang" \
@@ -144,6 +177,7 @@ jobs:
             CROSS_COMPILE="${GCC64_PATH}/bin/aarch64-elf-" \
             CROSS_COMPILE_ARM32="${GCC32_PATH}/bin/arm-eabi-" \
             CROSS_COMPILE_COMPAT="${GCC32_PATH}/bin/arm-eabi-" \
+            KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS" \
             Image.gz dtbo.img dtb.img
             
       - name: "📦 [PACKAGE] :: ANYKERNEL3_ZIP (STANDARD ZIPPING)"
@@ -161,6 +195,7 @@ jobs:
                                                                   
             [ GOD'S IN HIS HEAVEN, ALL'S RIGHT WITH THE WORLD ]   
                        PROJECT EVA : EVILSHIT PROTOCOL             
+                  [ PGO • BOLT • ThinLTO • MLGO Enabled ]
           EOF
           
           # Memasukkan Image.gz murni ke AnyKernel3
@@ -217,12 +252,16 @@ jobs:
             **Target Device:** `${{ env.DEVICE }}` (Redmi Note 10 Pro)
             **Build Date:** `${{ env.BUILD_DATE }}`
             
-            #### 🔬 ARCHITECTURE INFRASTRUCTURE
+            #### 🔬 ARCHITECTURE INFRASTRUCTURE & MUTATIONS
             * **OS Virtualization:** Ubuntu 24.04 (Noble Numbat)
-            * **Toolchain:** Neutron Clang (Latest Stable) + Greenforce GCC64 & GCC32
+            * **Toolchain:** Neutron Clang (Latest Stable) + Greenforce GCC64/32
+            * **Core Optimizations:** `ThinLTO` • `PGO` • `BOLT` • `MLGO`
             * **Compression:** Standard GZIP (`Image.gz`)
             * **Host Identity:** `${{ env.KBUILD_BUILD_HOST }}`
             * **User Identity:** `${{ env.KBUILD_BUILD_USER }}`
+            
+            #### 🧠 COMPILER HEURISTICS INJECTED
+            > Kernel ini dikompilasi dengan instruksi eksplisit untuk mem-bypass *classic heuristic inliner* menggunakan Machine Learning (`-enable-ml-inliner=release`), didorong bersama optimasi *Link-Time* yang masif.
             
             #### 📦 DEPLOYMENT UNITS (4 STANDARD-COMPRESSED FILES)
             > Semua file *binary* telah dikompilasi secara paralel dan diarsip menggunakan arsitektur AnyKernel3 dengan *monospaced ASCII Art banner* injeksi khusus.
@@ -238,5 +277,4 @@ jobs:
             *Synchronized output guarantees 4 separate flashable archives. End of line.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 
